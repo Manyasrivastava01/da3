@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  job1:
+    name: Build example and deploy to Minikube
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: medyagh/local-dev-example-with-minikube
+
+      - name: Start Minikube
+        uses: medyagh/setup-minikube@latest
+
+      - name: Verify the cluster is up
+        run: kubectl get pods -A
+
+      - name: Build Docker image inside Minikube
+        run: |
+          minikube image build -t local/devex:v1 .
+
+      - name: Deploy to Minikube
+        run: |
+          kubectl apply -f deploy/k8s.yaml
+          kubectl wait --for=condition=ready pod -l app=local-devex --timeout=60s
+
+      - name: Test service URLs
+        run: |
+          minikube service list
+          minikube service local-devex-svc --url
+          echo "------------------ Opening the service ------------------"
+          curl $(minikube service local-devex-svc --url)
